@@ -3,22 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SheetCheck - brief maintenance</title>
-<style>
-  body { font-family: system-ui, -apple-system, sans-serif; background: #171d29; color: #e8edf5;
-         display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .box { max-width: 560px; padding: 32px; }
-  h1 { color: #ffd54d; font-size: 1.4rem; }
-  p { color: #9aa7ba; line-height: 1.55; }
-  a { color: #6ea8ff; }
-</style>
+<title>SheetCheck - Catch bad Shopify imports before they happen</title>
+<meta name="description" content="Free tool: check a supplier CSV against your Shopify product export before you import. Catch missing option columns that can delete variants, duplicate SKUs, bad prices and unintended price changes. Files never leave your browser.">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="box">
-    <h1>SheetCheck is down for a quick safety fix</h1>
-    <p>Our pre-launch review found a few issues we want to fix before anyone relies on the tool,
-       so the checker is temporarily offline. Back shortly.</p>
-    <p>Questions: <a href="mailto:ioautomations1@gmail.com">ioautomations1@gmail.com</a></p>
+<header>
+  <div class="wrap">
+    <h1>SheetCheck</h1>
+    <p class="tagline">Check a supplier spreadsheet against your Shopify export <em>before</em> you import it.</p>
   </div>
+</header>
+
+<main class="wrap">
+
+  <section class="card warn-card">
+    <strong>Why this exists:</strong> Shopify's own import docs warn that importing rows for an existing product
+    with missing option columns can <strong>delete that product's variants</strong>. SheetCheck catches that -
+    plus duplicate SKUs, broken prices, barcode problems and every price change - before you hit Import.
+  </section>
+
+  <section class="card" id="step1">
+    <h2><span class="stepnum">1</span> Drop in your files</h2>
+    <div class="uploads">
+      <div class="dropzone" id="dz-supplier">
+        <h3>Supplier spreadsheet (CSV) <span class="req">required</span></h3>
+        <p>The new file from your supplier, before you touch Shopify.</p>
+        <input type="file" id="file-supplier" accept=".csv,text/csv">
+        <span class="fname" id="fname-supplier"></span>
+      </div>
+      <div class="dropzone" id="dz-export">
+        <h3>Current Shopify export (CSV) <span class="opt">recommended</span></h3>
+        <p>Products &rarr; Export in your Shopify admin. Without it, the variant-deletion and price-change checks cannot run.</p>
+        <input type="file" id="file-export" accept=".csv,text/csv">
+        <span class="fname" id="fname-export"></span>
+      </div>
+    </div>
+    <button class="btn primary" id="btn-to-mapping" disabled>Next: check column mapping</button>
+    <button class="btn ghost" id="btn-sample">No files handy? Load sample data</button>
+  </section>
+
+  <section class="card hidden" id="step2">
+    <h2><span class="stepnum">2</span> Map your columns</h2>
+    <p>We guessed these from your headers. Fix any that are wrong - especially anything to do with <strong>Options</strong>, <strong>SKU</strong> and <strong>Price</strong>.</p>
+    <div id="mapping-table"></div>
+    <div id="mapping-conflict" class="conflict hidden"></div>
+    <p class="fineprint hidden" id="unmapped-note"></p>
+    <button class="btn primary" id="btn-run">Run the check</button>
+  </section>
+
+  <section class="card hidden" id="step3">
+    <h2><span class="stepnum">3</span> Results</h2>
+    <div id="stats"></div>
+    <div id="verdict"></div>
+    <div class="filters" id="filters">
+      <button class="chip active" data-sev="all">All</button>
+      <button class="chip" data-sev="error">Errors</button>
+      <button class="chip" data-sev="warning">Warnings</button>
+      <button class="chip" data-sev="info">Info</button>
+    </div>
+    <div id="issues"></div>
+    <div class="downloads">
+      <button class="btn primary" id="btn-download-clean">Download cleaned CSV for Shopify import</button>
+      <button class="btn ghost" id="btn-download-report">Download issue report (spreadsheet-safe CSV)</button>
+    </div>
+    <p class="conflict hidden" id="formula-note"></p>
+    <p class="fineprint" id="clean-note">Cleaned import file: trims whitespace, fixes number formats, removes empty rows. Only the columns mapped in step 2 are carried over. Values are never rewritten - what you saw in the check is what Shopify gets. Rows with errors are kept by default so variant structure stays intact; fix or delete them in your spreadsheet app first. The issue report is a separate diagnostic file with formula-safe escaping for Excel.</p>
+    <label class="toggle"><input type="checkbox" id="chk-drop-errors"> Also exclude rows with errors from the cleaned file</label>
+  </section>
+
+  <section class="card privacy">
+    <h2>Private by design</h2>
+    <p>Your files <strong>never leave your browser</strong>. There is no upload, no server, no account, no tracking.
+    Everything runs on this page, so your supplier pricing and store data stay yours.
+    You can even load this page, go offline, and it still works.</p>
+  </section>
+
+  <section class="card how">
+    <h2>How to use it</h2>
+    <ol>
+      <li>In Shopify admin: <strong>Products &rarr; Export</strong> to get your current product CSV.</li>
+      <li>Save your supplier's spreadsheet as CSV (Excel / Google Sheets: File &rarr; Download / Save As &rarr; CSV).</li>
+      <li>Drop both in above, check the column mapping, run the check.</li>
+      <li>Fix the errors in your file, then import into Shopify with confidence.</li>
+    </ol>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>SheetCheck is a free tool by <strong>ioautomations</strong>. Questions or ideas: <a href="mailto:ioautomations1@gmail.com">ioautomations1@gmail.com</a></p>
+    <p class="fineprint">Not affiliated with Shopify. Always keep a backup export before any import.</p>
+  </div>
+</footer>
+
+<script src="csv.js"></script>
+<script src="checker.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
