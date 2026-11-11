@@ -75,6 +75,15 @@ main { padding: 24px 0 40px; }
   background: var(--card2); color: var(--text); border: 1px solid #3b4a63;
   border-radius: 6px; padding: 6px; max-width: 260px;
 }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll table { min-width: 520px; }
+@media (max-width: 480px) {
+  #mapping-table select { max-width: 150px; }
+}
+.conflict {
+  border: 1px solid var(--error); background: rgba(255,107,107,.12);
+  border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: 0.92rem;
+}
 .mapped-yes { color: var(--ok); }
 .mapped-no { color: var(--muted); }
 #stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
