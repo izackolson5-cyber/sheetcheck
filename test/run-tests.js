@@ -270,5 +270,16 @@ section('malformed input warnings');
   ok(r.stats.rows === 0 && r.issues.length === 0, 'zero-row supplier: no crash, zero stats');
 }
 
+/* ---------- QA follow-up: defensive merge (first non-empty wins) ---------- */
+section('defensive merge');
+{
+  const sup = CSV.toRecords(CSV.parse('SKU_A,SKU_B,Price\nAAA,BBB,5.00\n'));
+  const mapped = SC.applyMapping(sup, { SKU_A: 'Variant SKU', SKU_B: 'Variant SKU', Price: 'Variant Price' });
+  ok(mapped.records[0]['Variant SKU'] === 'AAA', 'duplicate field mapping: first non-empty wins (got ' + mapped.records[0]['Variant SKU'] + ')');
+  const sup2 = CSV.toRecords(CSV.parse('SKU_A,SKU_B,Price\n,BBB,5.00\n'));
+  const mapped2 = SC.applyMapping(sup2, { SKU_A: 'Variant SKU', SKU_B: 'Variant SKU', Price: 'Variant Price' });
+  ok(mapped2.records[0]['Variant SKU'] === 'BBB', 'empty first column falls through to second');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
