@@ -90,6 +90,29 @@
     return parseFloat(s);
   }
 
+  // Spreadsheet-formula leading character check. Negative plain numbers are legitimate data.
+  function isFormulaCell(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (s === '') return false;
+    var c = s[0];
+    if (c === '=' || c === '+' || c === '@') return true;
+    if (c === '-') {
+      var p = num(s);
+      return p === null || !!p.invalid;
+    }
+    return false;
+  }
+
+  // Normalized option-value combination key for one row, e.g. "small | blue".
+  function comboKeyOf(rec) {
+    var parts = [];
+    for (var i = 1; i <= 3; i++) {
+      var v = norm(rec['Option' + i + ' Value']);
+      if (v) parts.push(v);
+    }
+    return parts.join(' | ');
+  }
+
   function truthyBad(v) {
     var s = norm(v);
     if (s === '') return false;
@@ -137,7 +160,9 @@
           sku: String(rec['Variant SKU'] || '').trim(),
           price: String(rec['Variant Price'] || '').trim(),
           qty: String(rec['Variant Inventory Qty'] || '').trim(),
-          option: combo.join(' / '), row: rec.__row
+          option: combo.join(' / '),
+          combo: comboKeyOf(rec),
+          row: rec.__row
         });
       }
     });
@@ -158,6 +183,21 @@
 
     var has = {};
     supplier.fields.forEach(function (f) { has[f] = true; });
+
+    // Spreadsheet formula-injection scan across every mapped cell, before any other check.
+    // Leading whitespace is ignored; plain negative numbers are legitimate data and pass.
+    supplier.records.forEach(function (rec) {
+      var rh = String(rec['Handle'] || '').trim();
+      supplier.fields.forEach(function (f) {
+        if (f === '__row') return;
+        var v = String(rec[f] == null ? '' : rec[f]);
+        if (isFormulaCell(v)) {
+          add('error', 'formula-injection', rec.__row, rh,
+            'Cell in "' + f + '" starts with "' + v.trim()[0] + '" - spreadsheet apps execute that as a formula',
+            'Value: "' + v.trim().slice(0, 80) + '". Possible formula injection from the supplier file. Fix the cell at the source; the cleaned-file download stays disabled while any of these remain.');
+        }
+      });
+    });
 
     // Group supplier rows by handle, preserving order.
     var groups = [];
@@ -305,28 +345,59 @@
         if (firstTitle && existing.title && norm(firstTitle) !== norm(existing.title)) {
           add('warning', 'title-change', first.__row, h, 'Title change: "' + existing.title + '" -> "' + firstTitle + '"', 'Import will rename the product in your store.');
         }
-        // Match variants by SKU where possible
-        existing.variants.forEach(function (ev) {
-          if (!ev.sku) return;
-          var match = null;
-          g.rows.forEach(function (r) {
-            if (String(r['Variant SKU'] || '').trim().toLowerCase() === ev.sku.toLowerCase()) match = r;
+        // --- Variant identity: compare option-value sets, so SKU-less stores and renamed options are caught ---
+        var storeCombos = [];
+        existing.variants.forEach(function (ev) { if (ev.combo && storeCombos.indexOf(ev.combo) === -1) storeCombos.push(ev.combo); });
+        var supCombos = [];
+        g.rows.forEach(function (r) { var c = comboKeyOf(r); if (c && supCombos.indexOf(c) === -1) supCombos.push(c); });
+        var overwriteReported = {};
+        if (existing.options.length > 0 && supCombos.length > 0) {
+          storeCombos.forEach(function (c) {
+            if (supCombos.indexOf(c) === -1) {
+              overwriteReported[c] = true;
+              add('error', 'variant-overwrite-risk', first.__row, h,
+                'Store variant "' + c + '" has no matching option row in the supplier file',
+                'Importing rows for an existing product without its current variants can delete or overwrite them (Shopify\'s documented warning). Add a row for "' + c + '" or exclude this product from the import.');
+            }
           });
+          supCombos.forEach(function (c) {
+            if (storeCombos.indexOf(c) === -1) {
+              add('warning', 'new-variant-option', first.__row, h,
+                'Option combination "' + c + '" is not in the store',
+                'Importing will CREATE a new variant. Check the supplier did not just spell an existing option differently (e.g. "S" vs "Small").');
+            }
+          });
+        }
+
+        // --- Match store variants to supplier rows: SKU first, then option combination (covers SKU-less stores) ---
+        existing.variants.forEach(function (ev) {
+          var match = null;
+          var label = ev.sku ? 'SKU "' + ev.sku + '"' : '"' + (ev.combo || ev.option || 'unlabeled variant') + '"';
+          if (ev.sku) {
+            g.rows.forEach(function (r) {
+              if (String(r['Variant SKU'] || '').trim().toLowerCase() === ev.sku.toLowerCase()) match = r;
+            });
+          }
+          if (!match && ev.combo) {
+            g.rows.forEach(function (r) { if (comboKeyOf(r) === ev.combo) match = r; });
+          }
           if (!match) {
-            add('warning', 'variant-missing-from-import', ev.row, h, 'Store variant SKU "' + ev.sku + '" is not in the supplier file', 'Depending on import settings this variant can be deleted or left stale.');
+            if (!(ev.combo && overwriteReported[ev.combo])) {
+              add('warning', 'variant-missing-from-import', ev.row, h, 'Store variant ' + label + ' is not in the supplier file', 'Depending on import settings this variant can be deleted or left stale.');
+            }
             return;
           }
           var newP = num(match['Variant Price']);
           var oldP = num(ev.price);
           if (newP !== null && !newP.invalid && oldP !== null && !oldP.invalid && Math.abs(newP - oldP) > 0.0001) {
             var pct = oldP !== 0 ? ' (' + ((newP - oldP) / oldP * 100).toFixed(1) + '%)' : '';
-            add('warning', 'price-change', match.__row, h, 'Price change on SKU "' + ev.sku + '": ' + oldP + ' -> ' + newP + pct, 'Check this is intended before importing.');
+            add('warning', 'price-change', match.__row, h, 'Price change on ' + label + ': ' + oldP + ' -> ' + newP + pct, 'Check this is intended before importing.');
             stats.priceChanges++;
           }
           var newQ = num(match['Variant Inventory Qty']);
           var oldQ = num(ev.qty);
           if (newQ !== null && !newQ.invalid && oldQ !== null && !oldQ.invalid && newQ !== oldQ) {
-            add('info', 'qty-change', match.__row, h, 'Stock change on SKU "' + ev.sku + '": ' + oldQ + ' -> ' + newQ, '');
+            add('info', 'qty-change', match.__row, h, 'Stock change on ' + label + ': ' + oldQ + ' -> ' + newQ, '');
             stats.qtyChanges++;
           }
         });
@@ -380,6 +451,8 @@
     runChecks: runChecks,
     cleanRows: cleanRows,
     norm: norm,
-    num: num
+    num: num,
+    isFormulaCell: isFormulaCell,
+    comboKeyOf: comboKeyOf
   };
 });
