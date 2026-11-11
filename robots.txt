@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://izackolson5-cyber.github.io/sheetcheck/sitemap.xml
