@@ -11,7 +11,7 @@
   }
 
   // RFC4180-style parser: quoted fields, "" escapes, embedded newlines, CRLF/LF.
-  function parse(text) {
+  function parseInternal(text, warnings) {
     text = stripBOM(String(text == null ? '' : text));
     var rows = [];
     var row = [];
@@ -38,14 +38,24 @@
       }
     }
     if (inQuotes) {
-      // Unterminated quote: keep what we have rather than losing the file.
+      // Unterminated quote: keep what we have rather than losing the file, but say so loudly.
       row.push(field); rows.push(row);
+      if (warnings) warnings.push('The file ends inside a quoted value - the CSV is malformed. Rows after that point may be missing or merged. Re-export it from the source and check again.');
     } else if (field !== '' || row.length > 0) {
       row.push(field); rows.push(row);
     }
     // Drop trailing completely-empty rows
     while (rows.length && rows[rows.length - 1].every(function (v) { return v === ''; })) rows.pop();
     return rows;
+  }
+
+  function parse(text) { return parseInternal(text, null); }
+
+  // Like parse, but also returns warnings about malformed input: { rows, warnings }
+  function parseWithWarnings(text) {
+    var warnings = [];
+    var rows = parseInternal(text, warnings);
+    return { rows: rows, warnings: warnings };
   }
 
   function needsQuote(v) {
@@ -63,19 +73,30 @@
   }
 
   // rows (array of arrays) -> array of objects keyed by header; keeps row numbers (1-based data rows, header = row 0)
-  function toRecords(rows) {
-    if (!rows.length) return { headers: [], records: [] };
+  // Optional parseWarnings (from parseWithWarnings) are carried through; duplicate header names are flagged and first-wins.
+  function toRecords(rows, parseWarnings) {
+    var warnings = (parseWarnings || []).slice();
+    if (!rows.length) return { headers: [], records: [], warnings: warnings };
     var headers = rows[0].map(function (h) { return String(h).trim(); });
+    var seenH = {};
+    var dupReported = {};
+    headers.forEach(function (h) {
+      if (seenH[h] && !dupReported[h]) {
+        dupReported[h] = true;
+        warnings.push('The column name "' + h + '" appears more than once. Only the first column\'s values are used - rename or remove the duplicate at the source.');
+      }
+      seenH[h] = true;
+    });
     var records = [];
     for (var i = 1; i < rows.length; i++) {
       var rec = { __row: i + 1 }; // spreadsheet row number (1-based, header is row 1)
       for (var j = 0; j < headers.length; j++) {
-        rec[headers[j]] = rows[i][j] !== undefined ? rows[i][j] : '';
+        if (rec[headers[j]] === undefined) rec[headers[j]] = rows[i][j] !== undefined ? rows[i][j] : '';
       }
       rec.__extra = rows[i].slice(headers.length); // cells beyond header width
       records.push(rec);
     }
-    return { headers: headers, records: records };
+    return { headers: headers, records: records, warnings: warnings };
   }
 
   function isBlankRow(rec, headers) {
@@ -85,5 +106,5 @@
     return true;
   }
 
-  return { parse: parse, serialize: serialize, toRecords: toRecords, isBlankRow: isBlankRow };
+  return { parse: parse, parseWithWarnings: parseWithWarnings, serialize: serialize, toRecords: toRecords, isBlankRow: isBlankRow };
 });
