@@ -306,11 +306,15 @@ section('Option column auto-mapping (Colour + Size supplier headers)');
 section('Decimal-comma prices');
 
 {
-  const sup = CSV.toRecords(CSV.parse('Handle,Variant Price\nh-1,"19,99"\nh-2,1,250.00\nh-3,29.99\n'));
+  const sup = CSV.toRecords(CSV.parse('Handle,Variant Price\nh-1,"19,99"\nh-2,"1,250.00"\nh-3,29.99\n'));
   const r = SC.runChecks(SC.applyMapping(sup, SC.autoMap(sup.headers)), null);
   const dc = r.issues.filter(i => i.code === 'decimal-comma-price');
-  ok(dc.length === 1 && dc[0].row === 2, '19,99 flagged once as possible decimal comma (got ' + dc.length + ')');
+  ok(dc.length === 1 && dc[0].row === 2 && dc[0].severity === 'error', '19,99 flagged once as decimal-comma error (got ' + dc.length + ')');
   ok(r.issues.filter(i => i.code === 'bad-price').length === 0, 'no false bad-price on comma values');
+  const cleaned = SC.cleanRows(SC.applyMapping(sup, SC.autoMap(sup.headers)), {});
+  const row1 = cleaned.find(x => x.__row === 2), row2 = cleaned.find(x => x.__row === 3);
+  ok(row1['Variant Price'] === '19,99', 'ambiguous decimal-comma value preserved raw in cleaned file, not rewritten');
+  ok(row2['Variant Price'] === '1250.00', 'unambiguous thousands value still normalized');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
