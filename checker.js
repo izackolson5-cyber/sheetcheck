@@ -131,7 +131,11 @@
       fields.forEach(function (f) { out[f] = ''; });
       Object.keys(mapping).forEach(function (h) {
         var f = mapping[h];
-        if (f) out[f] = rec[h] !== undefined ? rec[h] : '';
+        if (!f) return;
+        // Defensive merge: if two supplier columns ever map to the same Shopify field
+        // (the UI blocks this, but be safe), first non-empty value wins - never silently
+        // overwrite data already taken from an earlier column.
+        if (String(out[f] == null ? '' : out[f]) === '') out[f] = rec[h] !== undefined ? rec[h] : '';
       });
       return out;
     });
