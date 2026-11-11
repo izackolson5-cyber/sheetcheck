@@ -22,9 +22,9 @@
     { key: 'Option1 Name', aliases: ['option1 name', 'option 1 name', 'option name', 'option1', 'variant option 1 name'] },
     { key: 'Option1 Value', aliases: ['option1 value', 'option 1 value', 'option value', 'optionvalue', 'variant option 1', 'size', 'color', 'colour', 'option'] },
     { key: 'Option2 Name', aliases: ['option2 name', 'option 2 name'] },
-    { key: 'Option2 Value', aliases: ['option2 value', 'option 2 value'] },
+    { key: 'Option2 Value', aliases: ['option2 value', 'option 2 value', 'size', 'color', 'colour', 'material', 'style', 'option'] },
     { key: 'Option3 Name', aliases: ['option3 name', 'option 3 name'] },
-    { key: 'Option3 Value', aliases: ['option3 value', 'option 3 value'] },
+    { key: 'Option3 Value', aliases: ['option3 value', 'option 3 value', 'size', 'color', 'colour', 'material', 'style', 'option'] },
     { key: 'Variant SKU', aliases: ['sku', 'variant sku', 'code', 'item code', 'product code', 'part number', 'part no', 'mpn', 'item number', 'product id', 'item id'] },
     { key: 'Variant Grams', aliases: ['grams', 'weight grams', 'weight (g)'] },
     { key: 'Variant Inventory Tracker', aliases: ['inventory tracker', 'variant inventory tracker'] },
@@ -203,14 +203,18 @@
       });
     });
 
-    // Group supplier rows by handle, preserving order.
+    // Group supplier rows by handle, preserving order. Handle-less rows still get
+    // per-row field checks below so a file without a Handle column does not silently
+    // skip duplicate-SKU, price and barcode findings.
     var groups = [];
     var byHandle = {};
+    var handleless = [];
     supplier.records.forEach(function (rec) {
       var h = String(rec['Handle'] || '').trim();
       if (!h) {
         if (!CSVLib.isBlankRow(rec, supplier.fields.filter(function (f) { return f !== '__row'; }))) {
           add('error', 'missing-handle', rec.__row, '', 'Row has no Handle', 'Every product/variant row needs a Handle. Shopify groups variants by it.');
+          handleless.push(rec);
         }
         return;
       }
@@ -221,6 +225,79 @@
     // Missing critical columns?
     if (!has['Handle']) {
       add('error', 'no-handle-column', null, '', 'No column is mapped to Handle', 'Map a column to Handle before importing; Shopify cannot group products without it.');
+    }
+
+    // Decimal-comma heuristic: money/qty values like "19,99" (comma, 2 decimals, no dot)
+    // are likely European decimal commas that would silently parse as 1999.
+    function looksDecimalComma(raw) {
+      return /^-?\$?\d{1,6},\d{2}$/.test(String(raw).trim());
+    }
+
+    // Per-row field checks, shared by grouped rows and handle-less rows.
+    function checkRowFields(r, h, existing, rowsInGroup) {
+        // SKU
+        var sku = String(r['Variant SKU'] || '').trim();
+        if (sku) {
+          var skey = sku.toLowerCase();
+          if (seenSku[skey] && (seenSku[skey].handle !== h || h === '')) {
+            if (h === '') add('error', 'duplicate-sku', r.__row, h, 'SKU "' + sku + '" appears on more than one row', 'Also on row ' + seenSku[skey].row + '. Duplicate SKUs break stock tracking and some imports.');
+            else add('error', 'duplicate-sku', r.__row, h, 'SKU "' + sku + '" is used by two different products', 'Also on row ' + seenSku[skey].row + ' ("' + seenSku[skey].handle + '"). Duplicate SKUs break stock tracking and some imports.');
+          } else if (!seenSku[skey]) seenSku[skey] = { row: r.__row, handle: h };
+        } else if (rowsInGroup > 1 || String(r['Variant Price'] || '').trim() !== '') {
+          add('info', 'missing-sku', r.__row, h, 'Variant row has no SKU', 'Without SKUs, matching supplier updates to store variants later is guesswork.');
+        }
+
+        // Price
+        var priceRaw = String(r['Variant Price'] || '').trim();
+        if (priceRaw !== '') {
+          var p = num(priceRaw);
+          if (p && p.invalid) add('error', 'bad-price', r.__row, h, 'Price "' + priceRaw + '" is not a number', 'Shopify expects a plain number like 19.99. Check for text, currency words or formulas.');
+          else if (p !== null && p < 0) add('error', 'negative-price', r.__row, h, 'Negative price ' + priceRaw, '');
+          else if (p !== null && looksDecimalComma(priceRaw)) add('warning', 'decimal-comma-price', r.__row, h, 'Price "' + priceRaw + '" looks like a decimal-comma number', 'It will import as ' + p + '. If the supplier meant ' + String(p/100) + ', fix the source file.');
+        } else if (!existing) {
+          add('warning', 'missing-price', r.__row, h, 'No price on new product row', 'Shopify will import it as 0.00.');
+        }
+
+        // Compare at
+        var cmpRaw = String(r['Variant Compare At Price'] || '').trim();
+        if (cmpRaw !== '') {
+          var cp = num(cmpRaw);
+          var pp = num(priceRaw);
+          if (cp && cp.invalid) add('warning', 'bad-compare-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" is not a number', '');
+          else if (cp !== null && looksDecimalComma(cmpRaw)) add('warning', 'decimal-comma-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" looks like a decimal-comma number', 'It will import as ' + cp + '. If the supplier meant ' + String(cp/100) + ', fix the source file.');
+          else if (cp !== null && pp !== null && !pp.invalid && cp < pp) add('warning', 'compare-below-price', r.__row, h, 'Compare-at price ' + cmpRaw + ' is below the sell price ' + priceRaw, 'Shopify shows compare-at as the "was" price; below sell price looks wrong.');
+        }
+
+        // Barcode
+        var bc = String(r['Variant Barcode'] || '').trim().replace(/\s/g, '');
+        if (bc) {
+          if (!/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(bc)) {
+            add('warning', 'bad-barcode', r.__row, h, 'Barcode "' + bc + '" is not a standard UPC/EAN/GTIN length', 'Expected 8, 12, 13 or 14 digits. Watch for Excel stripping leading zeros.');
+          }
+        }
+
+        // Qty
+        var qtyRaw = String(r['Variant Inventory Qty'] || '').trim();
+        if (qtyRaw !== '') {
+          var q = num(qtyRaw);
+          if (q && q.invalid) add('error', 'bad-qty', r.__row, h, 'Inventory quantity "' + qtyRaw + '" is not a number', '');
+          else if (q !== null && looksDecimalComma(qtyRaw)) add('warning', 'decimal-comma-qty', r.__row, h, 'Quantity "' + qtyRaw + '" looks like a decimal-comma number', 'It will import as ' + q + '. If the supplier meant ' + String(q/100) + ', fix the source file.');
+          else if (q !== null && q < 0) add('warning', 'negative-qty', r.__row, h, 'Negative inventory quantity ' + qtyRaw, 'Usually means a stocktake or export problem upstream.');
+        }
+
+        // Booleans
+        if (truthyBad(r['Variant Requires Shipping'])) add('warning', 'bad-bool', r.__row, h, 'Variant Requires Shipping has an unusual value "' + r['Variant Requires Shipping'] + '"', 'Use true/false.');
+        if (truthyBad(r['Variant Taxable'])) add('warning', 'bad-bool', r.__row, h, 'Variant Taxable has an unusual value "' + r['Variant Taxable'] + '"', 'Use true/false.');
+
+        // Status
+        var st = norm(r['Status']);
+        if (st && ['active', 'draft', 'archived'].indexOf(st) === -1) {
+          add('warning', 'bad-status', r.__row, h, 'Status "' + r['Status'] + '" is not active, draft or archived', 'Shopify rejects other values.');
+        }
+
+        // Image
+        var img = String(r['Image Src'] || '').trim();
+        if (img && !/^https?:\/\//i.test(img)) add('warning', 'bad-image', r.__row, h, 'Image source "' + img.slice(0, 60) + '" is not an http(s) URL', 'Shopify can only fetch public URLs.');
     }
 
     var seenSku = {}; // sku -> {row, handle}
@@ -282,67 +359,7 @@
       });
 
       // Per-row field checks
-      g.rows.forEach(function (r) {
-        // SKU
-        var sku = String(r['Variant SKU'] || '').trim();
-        if (sku) {
-          var skey = sku.toLowerCase();
-          if (seenSku[skey] && seenSku[skey].handle !== h) {
-            add('error', 'duplicate-sku', r.__row, h, 'SKU "' + sku + '" is used by two different products', 'Also on row ' + seenSku[skey].row + ' ("' + seenSku[skey].handle + '"). Duplicate SKUs break stock tracking and some imports.');
-          } else if (!seenSku[skey]) seenSku[skey] = { row: r.__row, handle: h };
-        } else if (g.rows.length > 1 || String(r['Variant Price'] || '').trim() !== '') {
-          add('info', 'missing-sku', r.__row, h, 'Variant row has no SKU', 'Without SKUs, matching supplier updates to store variants later is guesswork.');
-        }
-
-        // Price
-        var priceRaw = String(r['Variant Price'] || '').trim();
-        if (priceRaw !== '') {
-          var p = num(priceRaw);
-          if (p && p.invalid) add('error', 'bad-price', r.__row, h, 'Price "' + priceRaw + '" is not a number', 'Shopify expects a plain number like 19.99. Check for text, currency words or formulas.');
-          else if (p !== null && p < 0) add('error', 'negative-price', r.__row, h, 'Negative price ' + priceRaw, '');
-        } else if (!existing) {
-          add('warning', 'missing-price', r.__row, h, 'No price on new product row', 'Shopify will import it as 0.00.');
-        }
-
-        // Compare at
-        var cmpRaw = String(r['Variant Compare At Price'] || '').trim();
-        if (cmpRaw !== '') {
-          var cp = num(cmpRaw);
-          var pp = num(priceRaw);
-          if (cp && cp.invalid) add('warning', 'bad-compare-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" is not a number', '');
-          else if (cp !== null && pp !== null && !pp.invalid && cp < pp) add('warning', 'compare-below-price', r.__row, h, 'Compare-at price ' + cmpRaw + ' is below the sell price ' + priceRaw, 'Shopify shows compare-at as the "was" price; below sell price looks wrong.');
-        }
-
-        // Barcode
-        var bc = String(r['Variant Barcode'] || '').trim().replace(/\s/g, '');
-        if (bc) {
-          if (!/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(bc)) {
-            add('warning', 'bad-barcode', r.__row, h, 'Barcode "' + bc + '" is not a standard UPC/EAN/GTIN length', 'Expected 8, 12, 13 or 14 digits. Watch for Excel stripping leading zeros.');
-          }
-        }
-
-        // Qty
-        var qtyRaw = String(r['Variant Inventory Qty'] || '').trim();
-        if (qtyRaw !== '') {
-          var q = num(qtyRaw);
-          if (q && q.invalid) add('error', 'bad-qty', r.__row, h, 'Inventory quantity "' + qtyRaw + '" is not a number', '');
-          else if (q !== null && q < 0) add('warning', 'negative-qty', r.__row, h, 'Negative inventory quantity ' + qtyRaw, 'Usually means a stocktake or export problem upstream.');
-        }
-
-        // Booleans
-        if (truthyBad(r['Variant Requires Shipping'])) add('warning', 'bad-bool', r.__row, h, 'Variant Requires Shipping has an unusual value "' + r['Variant Requires Shipping'] + '"', 'Use true/false.');
-        if (truthyBad(r['Variant Taxable'])) add('warning', 'bad-bool', r.__row, h, 'Variant Taxable has an unusual value "' + r['Variant Taxable'] + '"', 'Use true/false.');
-
-        // Status
-        var st = norm(r['Status']);
-        if (st && ['active', 'draft', 'archived'].indexOf(st) === -1) {
-          add('warning', 'bad-status', r.__row, h, 'Status "' + r['Status'] + '" is not active, draft or archived', 'Shopify rejects other values.');
-        }
-
-        // Image
-        var img = String(r['Image Src'] || '').trim();
-        if (img && !/^https?:\/\//i.test(img)) add('warning', 'bad-image', r.__row, h, 'Image source "' + img.slice(0, 60) + '" is not an http(s) URL', 'Shopify can only fetch public URLs.');
-      });
+      g.rows.forEach(function (r) { checkRowFields(r, h, existing, g.rows.length); });
 
       // Compare against current export
       if (existing) {
@@ -411,6 +428,8 @@
         if (!hasImg) add('info', 'no-image', first.__row, h, 'New product "' + h + '" has no image URL', 'Products without images convert worse; add an Image Src column when you can.');
       }
     });
+
+    handleless.forEach(function (rec) { checkRowFields(rec, '', null, 1); });
 
     stats.newProducts = newCount;
     stats.existingProducts = existCount;
