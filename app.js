@@ -226,16 +226,25 @@
       v.className = 'ok';
       v.textContent = 'Looks clean against your current export. Nothing dangerous found - still keep a backup export before importing.';
     }
-    // Formula-injection gate: never offer an import file while these cells exist.
-    // Dropping rows automatically could break per-handle variant structure, so the download
-    // stays disabled until the cells are fixed at the source.
+    // Safety gate: never offer an import file while formula-injection cells exist or the
+    // supplier file parsed malformed (rows may be missing or merged). Dropping or repairing
+    // rows automatically could break per-handle variant structure or export partial data as
+    // if it were clean, so the download stays disabled until the source file is fixed.
     var formulaCount = lastResult.issues.filter(function (i) { return i.code === 'formula-injection'; }).length;
+    var malformedCount = lastResult.issues.filter(function (i) { return i.code === 'malformed-file'; }).length;
     var fnote = $('formula-note');
-    if (formulaCount > 0) {
+    if (formulaCount > 0 || malformedCount > 0) {
       $('btn-download-clean').disabled = true;
-      fnote.textContent = 'Cleaned-file download disabled: ' + formulaCount + ' cell' + (formulaCount > 1 ? 's' : '') +
-        ' start' + (formulaCount > 1 ? '' : 's') + ' with a spreadsheet-formula character (=, +, @ or a non-numeric -). ' +
-        'Fix ' + (formulaCount > 1 ? 'them' : 'it') + ' in the source file and run the check again.';
+      var parts = [];
+      if (formulaCount > 0) {
+        parts.push(formulaCount + ' cell' + (formulaCount > 1 ? 's' : '') + ' start' + (formulaCount > 1 ? '' : 's') +
+          ' with a spreadsheet-formula character (=, +, @ or a non-numeric -)');
+      }
+      if (malformedCount > 0) {
+        parts.push('the supplier file is malformed, so rows may be missing or merged and exporting it as clean output would be unsafe');
+      }
+      fnote.textContent = 'Cleaned-file download disabled: ' + parts.join('; and ') +
+        '. Fix the source file and run the check again.';
       fnote.classList.remove('hidden');
     } else {
       $('btn-download-clean').disabled = false;
