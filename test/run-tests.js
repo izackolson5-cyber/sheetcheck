@@ -281,5 +281,37 @@ section('defensive merge');
   ok(mapped2.records[0]['Variant SKU'] === 'BBB', 'empty first column falls through to second');
 }
 
+
+section('Handle-less supplier files (real supplier shape)');
+
+{
+  const sup = CSV.toRecords(CSV.parse('Item Code,Product Name,RRP\nA-1,Widget,10.00\nA-1,Widget,10.00\nA-2,Gadget,abc\n'));
+  const r = SC.runChecks(SC.applyMapping(sup, SC.autoMap(sup.headers)), null);
+  const codes = r.issues.map(i => i.code);
+  ok(codes.indexOf('no-handle-column') !== -1, 'handle column error still reported');
+  ok(codes.indexOf('duplicate-sku') !== -1, 'dup SKU caught despite missing Handle');
+  ok(codes.indexOf('bad-price') !== -1, 'bad price caught despite missing Handle');
+}
+
+section('Option column auto-mapping (Colour + Size supplier headers)');
+
+{
+  const map = SC.autoMap(['Item Code', 'Colour', 'Size']);
+  ok(map['Colour'] === 'Option1 Value', 'Colour -> Option1 Value');
+  ok(map['Size'] === 'Option2 Value', 'Size -> Option2 Value (not dropped)');
+  const map2 = SC.autoMap(['Size']);
+  ok(map2['Size'] === 'Option1 Value', 'single Size header still -> Option1 Value');
+}
+
+section('Decimal-comma prices');
+
+{
+  const sup = CSV.toRecords(CSV.parse('Handle,Variant Price\nh-1,"19,99"\nh-2,1,250.00\nh-3,29.99\n'));
+  const r = SC.runChecks(SC.applyMapping(sup, SC.autoMap(sup.headers)), null);
+  const dc = r.issues.filter(i => i.code === 'decimal-comma-price');
+  ok(dc.length === 1 && dc[0].row === 2, '19,99 flagged once as possible decimal comma (got ' + dc.length + ')');
+  ok(r.issues.filter(i => i.code === 'bad-price').length === 0, 'no false bad-price on comma values');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
