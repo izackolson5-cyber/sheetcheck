@@ -106,7 +106,8 @@
       var cls = mapping[h] ? 'mapped-yes' : 'mapped-no';
       html += '<tr class="' + cls + '"><td>' + escapeHtml(h) + '</td><td>' + escapeHtml(sample) + '</td><td>' + sel + '</td></tr>';
     });
-    html += '</table></div>';
+    html += '</table></div>' +
+      '<p class="scroll-hint">Tip: the table is wider than your screen - swipe it sideways to reach the "Maps to Shopify field" dropdowns.</p>';
     $('mapping-table').innerHTML = html;
     Array.prototype.forEach.call($('mapping-table').querySelectorAll('select'), function (sel) {
       var h = sel.getAttribute('data-header');
@@ -141,7 +142,8 @@
     var box = $('mapping-conflict');
     if (conflicts.length) {
       box.innerHTML = conflicts.map(function (c) {
-        return 'Columns <strong>' + escapeHtml(c.headers.join('</strong> and <strong>')) + '</strong> both map to <strong>' +
+        var names = c.headers.map(escapeHtml).join('</strong> and <strong>');
+        return 'Columns <strong>' + names + '</strong> both map to <strong>' +
           escapeHtml(c.field) + '</strong> - only one would be used and the other\'s data would be silently lost. ' +
           'Change one of them to "(ignore this column)" or a different field.';
       }).join('<br>');
