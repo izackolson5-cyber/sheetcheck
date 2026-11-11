@@ -77,6 +77,10 @@ main { padding: 24px 0 40px; }
 }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table-scroll table { min-width: 520px; }
+.scroll-hint { display: none; }
+@media (max-width: 700px) {
+  .scroll-hint { display: block; color: var(--warning); font-size: 0.85rem; margin: 8px 0 0; }
+}
 @media (max-width: 480px) {
   #mapping-table select { max-width: 150px; }
 }
