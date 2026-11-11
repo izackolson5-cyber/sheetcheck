@@ -21,14 +21,16 @@
   function loadCSV(file, which) {
     readFile(file, function (err, text) {
       if (err) { alert(err.message); return; }
-      var parsed = CSVLib.toRecords(CSVLib.parse(text));
+      var pw = CSVLib.parseWithWarnings(text);
+      var parsed = CSVLib.toRecords(pw.rows, pw.warnings);
       if (!parsed.headers.length) { alert('That file looks empty.'); return; }
+      var warnTxt = parsed.warnings.length ? ' - WARNING: ' + parsed.warnings[0] : '';
       if (which === 'supplier') {
         supplierParsed = parsed;
-        $('fname-supplier').textContent = file.name + ' - ' + parsed.records.length + ' rows, ' + parsed.headers.length + ' columns';
+        $('fname-supplier').textContent = file.name + ' - ' + parsed.records.length + ' rows, ' + parsed.headers.length + ' columns' + warnTxt;
       } else {
         exportParsed = parsed;
-        $('fname-export').textContent = file.name + ' - ' + parsed.records.length + ' rows, ' + parsed.headers.length + ' columns';
+        $('fname-export').textContent = file.name + ' - ' + parsed.records.length + ' rows, ' + parsed.headers.length + ' columns' + warnTxt;
       }
       $('btn-to-mapping').disabled = !supplierParsed;
     });
@@ -93,7 +95,7 @@
         return '<option value="' + f.key + '">' + f.key + '</option>';
       })
     ).join('');
-    var html = '<table><tr><th>Your column</th><th>Sample value</th><th>Maps to Shopify field</th></tr>';
+    var html = '<div class="table-scroll"><table><tr><th>Your column</th><th>Sample value</th><th>Maps to Shopify field</th></tr>';
     supplierParsed.headers.forEach(function (h) {
       var sample = '';
       for (var i = 0; i < supplierParsed.records.length; i++) {
@@ -104,7 +106,7 @@
       var cls = mapping[h] ? 'mapped-yes' : 'mapped-no';
       html += '<tr class="' + cls + '"><td>' + escapeHtml(h) + '</td><td>' + escapeHtml(sample) + '</td><td>' + sel + '</td></tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
     $('mapping-table').innerHTML = html;
     Array.prototype.forEach.call($('mapping-table').querySelectorAll('select'), function (sel) {
       var h = sel.getAttribute('data-header');
@@ -112,15 +114,80 @@
       sel.addEventListener('change', function () {
         mapping[h] = sel.value || null;
         sel.closest('tr').className = sel.value ? 'mapped-yes' : 'mapped-no';
+        refreshMappingState();
       });
     });
+    refreshMappingState();
+  }
+
+  // Two columns mapped to the same Shopify field would silently overwrite each other.
+  // Block the run until the user resolves it explicitly.
+  function mappingConflicts() {
+    var byField = {};
+    Object.keys(mapping).forEach(function (h) {
+      var f = mapping[h];
+      if (!f) return;
+      if (byField[f]) byField[f].push(h); else byField[f] = [h];
+    });
+    var out = [];
+    Object.keys(byField).forEach(function (f) {
+      if (byField[f].length > 1) out.push({ field: f, headers: byField[f] });
+    });
+    return out;
+  }
+
+  function refreshMappingState() {
+    var conflicts = mappingConflicts();
+    var box = $('mapping-conflict');
+    if (conflicts.length) {
+      box.innerHTML = conflicts.map(function (c) {
+        return 'Columns <strong>' + escapeHtml(c.headers.join('</strong> and <strong>')) + '</strong> both map to <strong>' +
+          escapeHtml(c.field) + '</strong> - only one would be used and the other\'s data would be silently lost. ' +
+          'Change one of them to "(ignore this column)" or a different field.';
+      }).join('<br>');
+      box.classList.remove('hidden');
+      $('btn-run').disabled = true;
+    } else {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      $('btn-run').disabled = false;
+    }
+    var unmapped = supplierParsed.headers.filter(function (h) { return !mapping[h]; });
+    var note = $('unmapped-note');
+    if (unmapped.length) {
+      note.textContent = 'Not carried into the cleaned file (no Shopify field): ' + unmapped.join(', ') +
+        '. If one of these matters - for example a second SKU or code column - map it above instead.';
+      note.classList.remove('hidden');
+    } else {
+      note.classList.add('hidden');
+      note.textContent = '';
+    }
   }
 
   // ---- Step 3: run ----
   $('btn-run').addEventListener('click', function () {
+    if (mappingConflicts().length) { refreshMappingState(); return; }
     lastMapped = SheetChecker.applyMapping(supplierParsed, mapping);
     var exportIndex = exportParsed ? SheetChecker.indexExport(exportParsed) : null;
     lastResult = SheetChecker.runChecks(lastMapped, exportIndex);
+    // Malformed input is never silent: surface parse problems as loud issues.
+    (supplierParsed.warnings || []).forEach(function (w) {
+      lastResult.issues.unshift({ severity: 'error', code: 'malformed-file', row: null, handle: '',
+        message: 'Supplier file problem: ' + w, detail: 'The results below may be incomplete because of this. Fix the file and run the check again.' });
+    });
+    if (exportParsed) {
+      (exportParsed.warnings || []).forEach(function (w) {
+        lastResult.issues.unshift({ severity: 'error', code: 'malformed-export', row: null, handle: '',
+          message: 'Shopify export problem: ' + w, detail: 'Comparison against your store may be incomplete because of this.' });
+      });
+    }
+    // Disclose exactly which supplier columns are dropped from the cleaned file.
+    var unmapped = supplierParsed.headers.filter(function (h) { return !mapping[h]; });
+    if (unmapped.length) {
+      lastResult.issues.push({ severity: 'info', code: 'unmapped-columns', row: null, handle: '',
+        message: unmapped.length + ' supplier column(s) not carried into the cleaned file: ' + unmapped.join(', '),
+        detail: 'Only columns mapped to a Shopify field appear in the cleaned import file. Go back to step 2 if one of these should be kept.' });
+    }
     renderResults();
     $('step3').classList.remove('hidden');
     $('step3').scrollIntoView({ behavior: 'smooth' });
@@ -140,15 +207,40 @@
       stat(s.priceChanges, 'price changes');
 
     var v = $('verdict');
-    if (errs.length) {
+    var noExport = !exportParsed;
+    var noExportNote = ' No Shopify export was provided, so the variant-deletion and price/stock-change checks did NOT run.';
+    if (s.rows === 0) {
       v.className = 'bad';
-      v.textContent = 'Do NOT import yet - ' + errs.length + ' error' + (errs.length > 1 ? 's' : '') + ' can lose or corrupt store data.';
+      v.textContent = 'No data rows found - nothing was checked. Make sure the supplier file is a real CSV with a header row and at least one data row.';
+    } else if (errs.length) {
+      v.className = 'bad';
+      v.textContent = 'Do NOT import yet - ' + errs.length + ' error' + (errs.length > 1 ? 's' : '') + ' can lose or corrupt store data.' + (noExport ? noExportNote : '');
+    } else if (noExport) {
+      v.className = 'warn';
+      v.textContent = 'No data-destroying errors found INSIDE the supplier file - but without your Shopify export the two most important checks (variant-deletion risk and price/stock changes) did NOT run. Add the export in step 1 for the full check.' +
+        (warns.length ? ' Also review the ' + warns.length + ' warning' + (warns.length > 1 ? 's' : '') + ' below.' : '');
     } else if (warns.length) {
       v.className = 'warn';
       v.textContent = 'No data-destroying errors, but review the ' + warns.length + ' warning' + (warns.length > 1 ? 's' : '') + ' below before importing.';
     } else {
       v.className = 'ok';
-      v.textContent = 'Looks clean. Nothing dangerous found - still keep a backup export before importing.';
+      v.textContent = 'Looks clean against your current export. Nothing dangerous found - still keep a backup export before importing.';
+    }
+    // Formula-injection gate: never offer an import file while these cells exist.
+    // Dropping rows automatically could break per-handle variant structure, so the download
+    // stays disabled until the cells are fixed at the source.
+    var formulaCount = lastResult.issues.filter(function (i) { return i.code === 'formula-injection'; }).length;
+    var fnote = $('formula-note');
+    if (formulaCount > 0) {
+      $('btn-download-clean').disabled = true;
+      fnote.textContent = 'Cleaned-file download disabled: ' + formulaCount + ' cell' + (formulaCount > 1 ? 's' : '') +
+        ' start' + (formulaCount > 1 ? '' : 's') + ' with a spreadsheet-formula character (=, +, @ or a non-numeric -). ' +
+        'Fix ' + (formulaCount > 1 ? 'them' : 'it') + ' in the source file and run the check again.';
+      fnote.classList.remove('hidden');
+    } else {
+      $('btn-download-clean').disabled = false;
+      fnote.classList.add('hidden');
+      fnote.textContent = '';
     }
     renderIssues();
   }
@@ -212,9 +304,19 @@
     download('sheetcheck-cleaned.csv', CSVLib.serialize(rows));
   });
 
+  // Diagnostic issue report: safe to open in Excel/Sheets - formula-leading cells are quoted.
+  // (The cleaned import file is deliberately left verbatim so Shopify values are never rewritten.)
+  function sanitizeForSpreadsheet(v) {
+    var s = String(v == null ? '' : v);
+    if (/^\s*[=+\-@]/.test(s)) return "'" + s;
+    return s;
+  }
+
   $('btn-download-report').addEventListener('click', function () {
     var rows = [['Severity', 'Row', 'Handle', 'Issue', 'Detail']].concat(
-      lastResult.issues.map(function (i) { return [i.severity, i.row || '', i.handle, i.message, i.detail]; })
+      lastResult.issues.map(function (i) {
+        return [i.severity, i.row || '', i.handle, i.message, i.detail].map(sanitizeForSpreadsheet);
+      })
     );
     download('sheetcheck-report.csv', CSVLib.serialize(rows));
   });
