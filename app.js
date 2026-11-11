@@ -233,11 +233,16 @@
     // rows automatically could break per-handle variant structure or export partial data as
     // if it were clean, so the download stays disabled until the source file is fixed.
     var formulaCount = lastResult.issues.filter(function (i) { return i.code === 'formula-injection'; }).length;
+    var decimalCommaCount = lastResult.issues.filter(function (i) { return i.code === 'decimal-comma-price' || i.code === 'decimal-comma-qty'; }).length;
     var malformedCount = lastResult.issues.filter(function (i) { return i.code === 'malformed-file'; }).length;
     var fnote = $('formula-note');
-    if (formulaCount > 0 || malformedCount > 0) {
+    if (formulaCount > 0 || malformedCount > 0 || decimalCommaCount > 0) {
       $('btn-download-clean').disabled = true;
       var parts = [];
+      if (decimalCommaCount > 0) {
+        parts.push(decimalCommaCount + ' value' + (decimalCommaCount > 1 ? 's look' : ' looks') +
+          ' like decimal-comma number' + (decimalCommaCount > 1 ? 's' : '') + ' (e.g. "19,99") - fix them in the source file');
+      }
       if (formulaCount > 0) {
         parts.push(formulaCount + ' cell' + (formulaCount > 1 ? 's' : '') + ' start' + (formulaCount > 1 ? '' : 's') +
           ' with a spreadsheet-formula character (=, +, @ or a non-numeric -)');
