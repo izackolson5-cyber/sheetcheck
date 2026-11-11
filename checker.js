@@ -173,6 +173,12 @@
     return byHandle;
   }
 
+  // Decimal-comma heuristic: money/qty values like "19,99" (comma, 2 decimals, no dot)
+  // are likely European decimal commas that would silently parse as 1999.
+  function looksDecimalComma(raw) {
+    return /^-?\$?\d{1,6},\d{2}$/.test(String(raw).trim());
+  }
+
   // Main check run.
   // supplier: { fields, records } (already mapped to canonical keys)
   // exportIndex: result of indexExport, or null when no current export was provided.
@@ -227,12 +233,6 @@
       add('error', 'no-handle-column', null, '', 'No column is mapped to Handle', 'Map a column to Handle before importing; Shopify cannot group products without it.');
     }
 
-    // Decimal-comma heuristic: money/qty values like "19,99" (comma, 2 decimals, no dot)
-    // are likely European decimal commas that would silently parse as 1999.
-    function looksDecimalComma(raw) {
-      return /^-?\$?\d{1,6},\d{2}$/.test(String(raw).trim());
-    }
-
     // Per-row field checks, shared by grouped rows and handle-less rows.
     function checkRowFields(r, h, existing, rowsInGroup) {
         // SKU
@@ -253,7 +253,7 @@
           var p = num(priceRaw);
           if (p && p.invalid) add('error', 'bad-price', r.__row, h, 'Price "' + priceRaw + '" is not a number', 'Shopify expects a plain number like 19.99. Check for text, currency words or formulas.');
           else if (p !== null && p < 0) add('error', 'negative-price', r.__row, h, 'Negative price ' + priceRaw, '');
-          else if (p !== null && looksDecimalComma(priceRaw)) add('warning', 'decimal-comma-price', r.__row, h, 'Price "' + priceRaw + '" looks like a decimal-comma number', 'It will import as ' + p + '. If the supplier meant ' + String(p/100) + ', fix the source file.');
+          else if (p !== null && looksDecimalComma(priceRaw)) add('error', 'decimal-comma-price', r.__row, h, 'Price "' + priceRaw + '" looks like a decimal-comma number', 'Imported as-is it becomes ' + p + '. If the supplier meant ' + String(p/100) + ', fix the source file. The cleaned-file download stays disabled until this is resolved.');
         } else if (!existing) {
           add('warning', 'missing-price', r.__row, h, 'No price on new product row', 'Shopify will import it as 0.00.');
         }
@@ -264,7 +264,7 @@
           var cp = num(cmpRaw);
           var pp = num(priceRaw);
           if (cp && cp.invalid) add('warning', 'bad-compare-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" is not a number', '');
-          else if (cp !== null && looksDecimalComma(cmpRaw)) add('warning', 'decimal-comma-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" looks like a decimal-comma number', 'It will import as ' + cp + '. If the supplier meant ' + String(cp/100) + ', fix the source file.');
+          else if (cp !== null && looksDecimalComma(cmpRaw)) add('error', 'decimal-comma-price', r.__row, h, 'Compare-at price "' + cmpRaw + '" looks like a decimal-comma number', 'Imported as-is it becomes ' + cp + '. If the supplier meant ' + String(cp/100) + ', fix the source file. The cleaned-file download stays disabled until this is resolved.');
           else if (cp !== null && pp !== null && !pp.invalid && cp < pp) add('warning', 'compare-below-price', r.__row, h, 'Compare-at price ' + cmpRaw + ' is below the sell price ' + priceRaw, 'Shopify shows compare-at as the "was" price; below sell price looks wrong.');
         }
 
@@ -281,7 +281,7 @@
         if (qtyRaw !== '') {
           var q = num(qtyRaw);
           if (q && q.invalid) add('error', 'bad-qty', r.__row, h, 'Inventory quantity "' + qtyRaw + '" is not a number', '');
-          else if (q !== null && looksDecimalComma(qtyRaw)) add('warning', 'decimal-comma-qty', r.__row, h, 'Quantity "' + qtyRaw + '" looks like a decimal-comma number', 'It will import as ' + q + '. If the supplier meant ' + String(q/100) + ', fix the source file.');
+          else if (q !== null && looksDecimalComma(qtyRaw)) add('error', 'decimal-comma-qty', r.__row, h, 'Quantity "' + qtyRaw + '" looks like a decimal-comma number', 'Imported as-is it becomes ' + q + '. If the supplier meant ' + String(q/100) + ', fix the source file. The cleaned-file download stays disabled until this is resolved.');
           else if (q !== null && q < 0) add('warning', 'negative-qty', r.__row, h, 'Negative inventory quantity ' + qtyRaw, 'Usually means a stocktake or export problem upstream.');
         }
 
@@ -456,7 +456,8 @@
         var v = String(rec[f] == null ? '' : rec[f]).trim();
         if (f === 'Variant Price' || f === 'Variant Compare At Price' || f === 'Cost per item') {
           var p = num(v);
-          if (p !== null && !p.invalid) v = p.toFixed(2);
+          // Ambiguous decimal-comma values ("19,99") are preserved, never silently rewritten.
+          if (p !== null && !p.invalid && !looksDecimalComma(v)) v = p.toFixed(2);
         }
         if (v !== '') empty = false;
         row[f] = v;
