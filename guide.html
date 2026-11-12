@@ -22,7 +22,33 @@
     <p>Shopify groups variants by Handle and defines them with the Option Name / Option Value columns. Shopify's own documentation warns that importing rows for an existing product without its option columns can delete the product's variants. This is the single most destructive common mistake: the supplier file has one row per SKU and no option columns at all, the importer treats it as a full replacement, and your Size/Colour variants are gone.</p>
     <p><strong>Check:</strong> for every existing product in the file, confirm the option columns are present and every variant you sell still has a row.</p>
 
-    <h2 style="font-size: 1.2rem;">2. Duplicate SKUs</h2>
+    <h2 style="font-size: 1.2rem;">2. Duplicate SKUs</h2><!DOCTYPE html>
+    
+<html lang="en">
+  
+<head>
+  
+  <meta charset="UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Shopify CSV import errors that delete variants (and how to catch them first) - SheetCheck</title>
+
+  <meta name="description" content="The supplier-CSV mistakes that break Shopify imports: missing option columns that can delete variants, duplicate SKUs, decimal-comma prices, and price changes you didn't mean to make. How to catch them before you import.">
+
+  <link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
+
+  <meta property="og:type" content="article">
+
+  <meta property="og:title" content="Shopify CSV import errors that delete variants (and how to catch them first)">
+
+  <meta property="og:description" content="The supplier-CSV mistakes that break Shopify imports and how to catch them before you i</title>
+
+
+
+</head>
+
+
     <p>Two products sharing a SKU breaks stock tracking and makes some import tools overwrite one product with the other. Suppliers reuse SKUs surprisingly often, especially across seasons.</p>
     <p><strong>Check:</strong> every SKU in the file should map to exactly one product.</p>
 
