@@ -1,75 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shopify CSV import errors that delete variants (and how to catch them first) - SheetCheck</title>
-  <meta name="description" content="The supplier-CSV mistakes that break Shopify imports: missing option columns that can delete variants, duplicate SKUs, decimal-comma prices, and price changes you didn't mean to make. How to catch them before you import.">
-  <link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
-  <meta property="og:type" content="article">
-  <meta property="og:title" content="Shopify CSV import errors that delete variants (and how to catch them first)">
-  <meta property="og:description" content="The supplier-CSV mistakes that break Shopify imports and how to catch them before you import. Free browser tool, no upload.">
-  <meta property="og:url" content="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopify CSV import errors that delete variants (and how to catch them first) - SheetCheck</title>
+<meta name="description" content="Six Shopify CSV import mistakes that quietly break products and prices, and how to check a supplier file against your store export before you import. Free browser-based checker.">
+<link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
+<meta property="og:title" content="Shopify CSV import errors that delete variants (and how to catch them first)">
+<meta property="og:description" content="Six supplier-CSV mistakes that quietly break Shopify products and prices, and how to catch them before import.">
+<meta property="og:url" content="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
+<meta property="og:type" content="article">
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:48px 20px 32px}
+h1{font-size:28px;line-height:1.25;margin:0 0 16px}
+h2{font-size:20px;margin:32px 0 8px}
+p{margin:0 0 12px}
+.lede{color:#334155;font-size:17px}
+.check{background:#ecfdf5;border-left:3px solid #10b981;padding:8px 12px;border-radius:0 6px 6px 0;color:#065f46}
+.cta{margin-top:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px}
+.cta a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600}
+nav{max-width:720px;margin:0 auto;padding:16px 20px;font-size:14px}
+nav a{color:#2563eb;text-decoration:none}
+footer{max-width:720px;margin:0 auto;padding:24px 20px 48px;font-size:13px;color:#64748b}
+</style>
 </head>
 <body>
-  <main class="wrap" style="max-width: 760px; padding: 2rem 1rem;">
-    <p><a href="/sheetcheck/">← SheetCheck - free pre-import checker</a></p>
-    <h1 style="font-size: 1.6rem;">Shopify CSV import errors that delete variants (and how to catch them first)</h1>
-    <p>If you move supplier spreadsheets into Shopify, the dangerous mistakes are the quiet ones. The import finishes, nothing looks obviously wrong, and a week later you notice a product lost half its variants or a price is 100x too high. These are the errors worth checking before every import.</p>
+<nav><a href="/sheetcheck/">&larr; SheetCheck - free supplier CSV checker</a></nav>
+<main>
+<h1>Shopify CSV import errors that delete variants (and how to catch them first)</h1>
+<p class="lede">If you move supplier spreadsheets into Shopify, the dangerous mistakes are the quiet ones. The import finishes, nothing looks obviously wrong, and a week later you notice a product lost its variants or a price is wildly wrong. These are the errors worth checking before every import.</p>
 
-    <h2 style="font-size: 1.2rem;">1. Missing option columns can delete variants</h2>
-    <p>Shopify groups variants by Handle and defines them with the Option Name / Option Value columns. Shopify's own documentation warns that importing rows for an existing product without its option columns can delete the product's variants. This is the single most destructive common mistake: the supplier file has one row per SKU and no option columns at all, the importer treats it as a full replacement, and your Size/Colour variants are gone.</p>
-    <p><strong>Check:</strong> for every existing product in the file, confirm the option columns are present and every variant you sell still has a row.</p>
+<h2>1. Missing option columns can delete variants</h2>
+<p>Shopify builds variants from the Option Name and Option Value columns under each product's Handle. Shopify's own documentation warns that when an import file includes a column that depends on other data the file leaves out - Shopify's example is a SKU column without the Option1 Name and Option1 Value columns - the existing data is deleted and the variant option is gone. It also warns that changing option values deletes existing variant IDs. In practice the dangerous file is the supplier sheet with one row per SKU and no option columns at all: import it over an existing product and its Size/Colour variants can be wiped.</p>
+<p class="check">Check: for every existing product in the file, confirm the option columns are present and every variant you sell still has a row.</p>
 
-    <h2 style="font-size: 1.2rem;">2. Duplicate SKUs</h2><!DOCTYPE html>
-    
-<html lang="en">
-  
-<head>
-  
-  <meta charset="UTF-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Shopify CSV import errors that delete variants (and how to catch them first) - SheetCheck</title>
+<h2>2. Duplicate SKUs and repeated rows</h2>
+<p>Supplier files often list the same SKU twice: a restock line, a duplicated paste, two colourways merged badly. When two rows claim the same SKU it is ambiguous which values should win, and what lands in the store depends on the order the rows are processed.</p>
+<p class="check">Check: no SKU should appear twice in the file unless you know exactly why.</p>
 
-  <meta name="description" content="The supplier-CSV mistakes that break Shopify imports: missing option columns that can delete variants, duplicate SKUs, decimal-comma prices, and price changes you didn't mean to make. How to catch them before you import.">
+<h2>3. Decimal-comma prices ("19,99")</h2>
+<p>European suppliers often write prices with a decimal comma. Shopify expects a plain number like 19.99, and a comma is also the character that separates CSV columns, so an unquoted 19,99 can break the row's structure or be read as the wrong number depending on how the file is processed. Either way it needs a human decision before import, not an automatic conversion.</p>
+<p class="check">Check: any price containing a comma gets reviewed before the file goes anywhere near Shopify.</p>
 
-  <link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/guide.html">
+<h2>4. Prices that aren't numbers</h2>
+<p>"NZD 19.99", "POA", a currency symbol in the wrong place, or a formula that broke when the supplier exported. Shopify expects only the monetary value, without a currency symbol.</p>
+<p class="check">Check: every price cell is digits with at most one decimal point.</p>
 
-  <meta property="og:type" content="article">
+<h2>5. Unintended price and stock changes</h2>
+<p>If you import with "Overwrite products with matching handles" selected, Shopify replaces the values in the matching columns of existing products - and a blank non-required column overwrites the existing value with blank. A supplier file that quietly raises a cost, or leaves a field empty, will carry that change into your live store.</p>
+<p class="check">Check: compare the file against a current Shopify export and review every price and quantity change before import.</p>
 
-  <meta property="og:title" content="Shopify CSV import errors that delete variants (and how to catch them first)">
+<h2>6. Barcode and boolean formatting</h2>
+<p>Excel strips leading zeros from EAN barcodes, and TRUE/FALSE columns arrive as "yes", "1", or "Y" while Shopify's CSV format expects true or false. Each one is small; together they make an import fail in ways that take an afternoon to untangle.</p>
+<p class="check">Check: barcodes keep their leading zeros and boolean columns read exactly true or false.</p>
 
-  <meta property="og:description" content="The supplier-CSV mistakes that break Shopify imports and how to catch them before you i</title>
-
-
-
-</head>
-
-
-    <p>Two products sharing a SKU breaks stock tracking and makes some import tools overwrite one product with the other. Suppliers reuse SKUs surprisingly often, especially across seasons.</p>
-    <p><strong>Check:</strong> every SKU in the file should map to exactly one product.</p>
-
-    <h2 style="font-size: 1.2rem;">3. Decimal-comma prices ("19,99")</h2>
-    <p>European suppliers often write prices with a decimal comma. If your pipeline reads "19,99" as text and strips the comma, the product goes live at 1999.00. It doesn't look like an error - it looks like a very expensive cap.</p>
-    <p><strong>Check:</strong> any price containing a comma needs a human decision before import, not an automatic conversion.</p>
-
-    <h2 style="font-size: 1.2rem;">4. Prices that aren't numbers</h2>
-    <p>"NZD 19.99", "POA", currency symbols in the wrong place, or a formula that broke when the supplier exported. Shopify expects a plain number like 19.99.</p>
-
-    <h2 style="font-size: 1.2rem;">5. Unintended price and stock changes</h2>
-    <p>If you import over an existing store, the file can quietly change prices and quantities you didn't mean to touch - a supplier raised a cost, and your retail price silently follows. Compare the file against a current Shopify export first, and review every change before it goes live.</p>
-
-    <h2 style="font-size: 1.2rem;">6. Barcode and boolean formatting</h2>
-    <p>Excel loves stripping leading zeros from EANs, and TRUE/FALSE columns arrive as "yes", "1", or "Y". Each one is small; together they make an import fail in ways that take an afternoon to untangle.</p>
-
-    <h2 style="font-size: 1.2rem;">Catch them in two minutes</h2>
-    <p><a href="/sheetcheck/">SheetCheck</a> is a free tool that checks a supplier CSV against your Shopify product export before you import: missing option columns, duplicate SKUs, decimal-comma prices, non-numeric prices, barcodes, and unintended price and stock changes. It runs entirely in your browser - the file never leaves your computer. It is brand new, so treat it as a second pair of eyes, not a guarantee.</p>
-    <p><a href="/sheetcheck/">Check a supplier CSV now →</a></p>
-    <hr>
-    <p style="font-size: 0.9rem; color: #666;">SheetCheck is a free tool by ioautomations. No account, no upload, no tracking.</p>
-  </main>
+<div class="cta">
+<h2>Catch them in two minutes</h2>
+<p>SheetCheck is a free tool that checks a supplier CSV against your Shopify product export before you import: missing option columns, duplicate SKUs, decimal-comma prices, non-numeric prices, barcodes, and unintended price and stock changes. It runs entirely in your browser - the file never leaves your computer. It is brand new, so treat it as a second pair of eyes, not a guarantee.</p>
+<p><a href="/sheetcheck/">Check a CSV now - free</a></p>
+</div>
+</main>
+<footer>Built by ioautomations. Runs in your browser; no uploads, no account.</footer>
 </body>
 </html>
