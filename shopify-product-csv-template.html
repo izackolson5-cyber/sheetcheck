@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopify product CSV template: every column that matters, explained - SheetCheck</title>
+<meta name="description" content="What each column in Shopify's product CSV template actually does, the rows-per-product structure that trips everyone up, and the safer way to start - from a real export. Free browser-based checker.">
+<link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/shopify-product-csv-template.html">
+<meta property="og:title" content="Shopify product CSV template: every column that matters, explained">
+<meta property="og:description" content="What each column in Shopify's product CSV actually does, and the safer way to start.">
+<meta property="og:url" content="https://izackolson5-cyber.github.io/sheetcheck/shopify-product-csv-template.html">
+<meta property="og:type" content="article">
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:48px 20px 32px}
+h1{font-size:28px;line-height:1.25;margin:0 0 16px}
+h2{font-size:20px;margin:32px 0 8px}
+p{margin:0 0 12px}
+.lede{color:#334155;font-size:17px}
+.check{background:#ecfdf5;border-left:3px solid #10b981;padding:8px 12px;border-radius:0 6px 6px 0;color:#065f46}
+.cta{margin-top:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px}
+.cta a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600}
+nav{max-width:720px;margin:0 auto;padding:16px 20px;font-size:14px}
+nav a{color:#2563eb;text-decoration:none}
+footer{max-width:720px;margin:0 auto;padding:24px 20px 48px;font-size:13px;color:#64748b}
+footer a{color:#2563eb}
+</style>
+</head>
+<body>
+<nav><a href="/sheetcheck/">&larr; SheetCheck - free supplier CSV checker</a></nav>
+<main>
+<h1>Shopify product CSV template: every column that matters, explained</h1>
+<p class="lede">Shopify publishes a blank product CSV template, and almost everyone who opens it has the same two reactions: "why are there fifty columns" and "why does one product take up six rows". Here's the structure behind it, the columns you'll actually use, and a better starting point than the blank template.</p>
+
+<h2>Why one product takes multiple rows</h2>
+<p>The file is flat, but products aren't. Every row with the same <strong>Handle</strong> belongs to the same product. The first row carries the product-level details (title, description, vendor, tags); the rows underneath it carry its variants (one row each) and its images (one row each). A T-shirt in three sizes with two photos is five rows under one handle. Get the grouping wrong - a variant row under the wrong handle, an option value missing on one row - and Shopify either rejects the rows or quietly deletes the variants it can't match. Shopify's own documentation warns that changing or omitting option data on import can delete existing variant data.</p>
+
+<h2>The columns you'll actually fill in</h2>
+<p><strong>Handle</strong> - the product's URL name and the glue that groups its rows. Lowercase, dashes, no spaces. Changing a handle changes the product's URL, so old links break.<br>
+<strong>Title</strong> - required only on the product's first row.<br>
+<strong>Body (HTML)</strong> - the description. HTML is allowed; wrap the whole cell in quotes if it contains commas or line breaks.<br>
+<strong>Vendor / Product Category / Type / Tags</strong> - organisation columns. Tags are comma-separated inside one quoted cell.<br>
+<strong>Option1 Name / Option1 Value</strong> (and Option2, Option3) - how variants exist at all. "Size" / "Large". Every variant row needs them.<br>
+<strong>Variant SKU</strong> - your stock-keeping code. Keep it unique across the whole file.<br>
+<strong>Variant Price</strong> - digits and a decimal point only. No currency symbol, no comma: 19.99, not "NZD 19.99" or "19,99".<br>
+<strong>Variant Compare At Price</strong> - the crossed-out "was" price. Leave blank if you're not running a visible markdown.<br>
+<strong>Variant Inventory Qty</strong> - a whole number. An inventory column with no quantities is how stock gets zeroed by accident.<br>
+<strong>Variant Barcode</strong> - the EAN/UPC. Watch Excel: it strips leading zeros and turns long barcodes into scientific notation unless the column is formatted as text.<br>
+<strong>Image Src</strong> - a publicly reachable image URL, one per row. Shopify downloads a copy on import; a URL that requires a login fails.<br>
+<strong>Variant Requires Shipping / Variant Taxable</strong> - the words true or false, lowercase. Not "yes", not 1.<br>
+<strong>Status</strong> - active, draft or archived.</p>
+
+<h2>The better starting point: your own export</h2>
+<p>The blank template has no examples, so every cell is a guess at the format Shopify wants. A real export of your own products (Products &rarr; Export) is the same file with the answers filled in: your handles, your option structure, your formats. Add new products by copying an existing product's rows and editing them, and the structure is right by construction. The <a href="/sheetcheck/map-supplier-csv.html">column-mapping guide</a> shows how to fit a supplier's spreadsheet into that shape without retyping it.</p>
+<p class="check">Rule: blank template for reference, real export for work.</p>
+
+<h2>Before you import it back</h2>
+<p>Two switches decide whether the import is safe. "Overwrite existing products that have the same handle" replaces matching values in existing products - and a blank non-required cell overwrites the existing value with blank. And any product in the file that already exists should be complete: all its variant and image rows, not a partial set. The <a href="/sheetcheck/guide.html">common import errors</a> are all variations on these two.</p>
+
+<div class="cta">
+<h2>Check the file before it touches your store</h2>
+<p>SheetCheck is a free tool that compares your CSV against a Shopify export and flags what would change: variant-deletion risk, price and stock changes, duplicate SKUs, missing prices, barcode and boolean formatting - exact rows, plain English. It runs entirely in your browser; nothing is uploaded. It is brand new, so treat it as a second pair of eyes, not a guarantee.</p>
+<p><a href="/sheetcheck/">Check a CSV now - free</a></p>
+</div>
+</main>
+<footer>Built by ioautomations. Runs in your browser; no uploads, no account.<br>Also read: <a href="/sheetcheck/map-supplier-csv.html">how to map a supplier spreadsheet to Shopify's product CSV format</a>, <a href="/sheetcheck/import-supplier-price-list.html">how to import a supplier price list safely</a> and <a href="/sheetcheck/shopify-csv-import-errors.html">what Shopify CSV import errors mean</a></footer>
+</body>
+</html>
