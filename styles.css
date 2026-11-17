@@ -66,9 +66,9 @@ main { padding: 24px 0 40px; }
 .btn.primary:hover { background: var(--accent); }
 .btn.primary:disabled { background: #3a4a63; cursor: not-allowed; }
 .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent2); }
-.hidden { display: none; }
-#mapping-table table, #issues table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-#mapping-table td, #mapping-table th, #issues td, #issues th {
+.hidden { display: none !important; }
+#mapping-table table, #issues table, #batch-summary table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+#mapping-table td, #mapping-table th, #issues td, #issues th, #batch-summary td, #batch-summary th {
   padding: 8px 10px; border-bottom: 1px solid #2a3648; text-align: left; font-size: 0.92rem;
 }
 #mapping-table select {
@@ -130,3 +130,52 @@ main { padding: 24px 0 40px; }
 .how li strong { color: var(--text); }
 footer { border-top: 1px solid #2a3648; padding: 24px 0 48px; margin-top: 20px; }
 footer a { color: var(--accent); }
+
+/* Pro / pricing */
+.pro-badge {
+  display: inline-block; vertical-align: middle; background: var(--warning); color: #1a1a1a;
+  font-size: 0.85rem; font-weight: 800; letter-spacing: 1px; border-radius: 6px;
+  padding: 2px 8px; margin-left: 10px;
+}
+.pro-only { display: none !important; }
+body.pro .pro-only { display: block !important; }
+.protag {
+  background: var(--accent2); color: #fff; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px; border-radius: 999px; padding: 3px 10px;
+  vertical-align: middle; margin-left: 6px;
+}
+#dz-batch { margin-bottom: 16px; }
+.batchbar { margin: 4px 0 12px; font-size: 0.95rem; }
+.batchbar select, .presetbar select, .presetbar input {
+  background: var(--card2); color: var(--text); border: 1px solid #3b4a63;
+  border-radius: 6px; padding: 6px; margin: 4px 6px 4px 0; max-width: 240px;
+}
+.presetbar { margin: 4px 0 12px; }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .plans { grid-template-columns: 1fr; } }
+.plan {
+  background: var(--card2); border: 1px solid #2a3648; border-radius: var(--radius); padding: 20px;
+}
+.plan h3 { margin: 0 0 6px; }
+.plan .price { font-size: 1.6rem; font-weight: 800; margin: 4px 0 10px; }
+.plan .price span { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+.plan ul { padding-left: 20px; margin: 0 0 14px; }
+.plan li { margin-bottom: 6px; color: var(--muted); }
+.plan li strong { color: var(--text); }
+.proplan { border-color: var(--accent2); }
+.prokey { margin-top: 16px; border-top: 1px solid #2a3648; padding-top: 16px; }
+.prokey label { margin-right: 8px; color: var(--muted); }
+.prokey input {
+  background: var(--card2); color: var(--text); border: 1px solid #3b4a63; border-radius: 6px;
+  padding: 8px 10px; font-family: monospace; letter-spacing: 1px; margin-right: 8px;
+}
+.pill { border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700; }
+.pill.bad { background: rgba(255,107,107,.15); color: var(--error); }
+.pill.warn { background: rgba(255,201,77,.12); color: var(--warning); }
+.pill.ok { background: rgba(82,214,138,.12); color: var(--ok); }
+.badcell { color: var(--error); font-weight: 700; }
+
+#batch-summary th { white-space: nowrap; padding-right: 14px; }
+#batch-summary td { padding-right: 14px; }
+#btn-buy-pro { display: inline-block; line-height: 1.35; }
