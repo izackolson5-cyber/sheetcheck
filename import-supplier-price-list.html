@@ -45,11 +45,11 @@ footer a{color:#2563eb}
 <p class="check">Rule: every problem found now costs a minute. The same problem found after import costs an afternoon.</p>
 
 <h2>4. Import carefully - and understand the overwrite switch</h2>
-<p>Shopify's import offers "Overwrite existing products that have the same handle". With it on, Shopify replaces values in the matching columns of existing products - and a blank non-required column in your file overwrites the existing value with blank. Import a small slice first (one product, or a handful of rows) and look at the result in the admin before running the whole file.</p>
-<p class="check">Rule: test with a few rows, check them in the admin, then run the rest.</p>
+<p>Shopify's import offers "Overwrite existing products that have the same handle". With it on, Shopify replaces values in the matching columns of existing products - and a blank non-required column in your file overwrites the existing value with blank. Import one complete product first - every row that belongs to it, including all its variant and image rows, because a partial set of rows can change how the import treats that product - and look at the result in the admin before running the whole file.</p>
+<p class="check">Rule: test with one complete product, all its rows included, check it in the admin, then run the rest.</p>
 
 <h2>5. Verify after import</h2>
-<p>Spot-check the products that already existed: variant counts, prices, stock quantities, images. Compare against the export from step 1. If something is wrong, that export is your way back.</p>
+<p>Spot-check the products that already existed: variant counts, prices, stock quantities, images. Compare against the export from step 1. If something is wrong, that export helps you recover product data - you can re-import it or copy values back by hand. It is not a full store backup or an automatic restore: orders, customers, settings and most theme content live outside a product CSV. For real protection, keep a separate backup habit - Shopify's admin covers what exports do and do not include, and dedicated backup apps exist for full coverage.</p>
 
 <div class="cta">
 <h2>Step 3 in two minutes</h2>
