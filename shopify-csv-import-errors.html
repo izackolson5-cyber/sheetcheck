@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopify CSV import errors: what they mean and how to fix them - SheetCheck</title>
+<meta name="description" content="Why Shopify product CSV imports fail or quietly break products - encoding, column, variant and price problems explained, with the checks to run before you import. Free browser-based checker.">
+<link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/shopify-csv-import-errors.html">
+<meta property="og:title" content="Shopify CSV import errors: what they mean and how to fix them">
+<meta property="og:description" content="Why Shopify product CSV imports fail or quietly break products, and the checks to run first.">
+<meta property="og:url" content="https://izackolson5-cyber.github.io/sheetcheck/shopify-csv-import-errors.html">
+<meta property="og:type" content="article">
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:48px 20px 32px}
+h1{font-size:28px;line-height:1.25;margin:0 0 16px}
+h2{font-size:20px;margin:32px 0 8px}
+p{margin:0 0 12px}
+.lede{color:#334155;font-size:17px}
+.check{background:#ecfdf5;border-left:3px solid #10b981;padding:8px 12px;border-radius:0 6px 6px 0;color:#065f46}
+.cta{margin-top:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px}
+.cta a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600}
+nav{max-width:720px;margin:0 auto;padding:16px 20px;font-size:14px}
+nav a{color:#2563eb;text-decoration:none}
+footer{max-width:720px;margin:0 auto;padding:24px 20px 48px;font-size:13px;color:#64748b}
+footer a{color:#2563eb}
+</style>
+</head>
+<body>
+<nav><a href="/sheetcheck/">&larr; SheetCheck - free supplier CSV checker</a></nav>
+<main>
+<h1>Shopify CSV import errors: what they mean and how to fix them</h1>
+<p class="lede">Shopify CSV import problems come in two kinds. The loud kind: the import refuses your file and shows an error. The quiet kind: the import succeeds and breaks products you didn't mean to touch. The loud kind wastes an hour. The quiet kind wastes a week. Here's how to fix both.</p>
+
+<h2>The loud errors: when Shopify rejects the file</h2>
+<p>When an import fails outright, the cause is almost always structure rather than content:</p>
+<p><strong>Encoding.</strong> Shopify expects the file as UTF-8. Excel on Windows often saves CSVs in a local encoding instead, which produces garbled characters or an unreadable file. In Excel, choose "CSV UTF-8 (Comma delimited)" when saving, or run the file through a text editor and save as UTF-8.</p>
+<p><strong>Column names.</strong> Shopify matches columns by their exact header names - "Variant Price" works, "Price" or "variant_price" does not. One renamed header and the whole column is silently ignored or the import errors out.</p>
+<p><strong>Commas inside cells.</strong> A comma inside a value (a description, an address, a European-style price like 19,99) needs the whole value wrapped in quotes. Unquoted, it shifts every column in that row one place to the right and the row is rejected or misread.</p>
+<p class="check">Rule: a rejected import is a formatting problem in the file, not a Shopify problem - fix the file, not the store.</p>
+
+<h2>The quiet errors: when the import "works"</h2>
+<p>These are the ones that hurt, because nothing tells you they happened:</p>
+<p><strong>Deleted variants.</strong> Shopify's own documentation warns that importing a file with a variant-related column but without the option columns can delete existing variant data. A supplier sheet with one row per SKU and no option columns, imported over an existing product, can wipe its Size/Colour variants. The <a href="/sheetcheck/guide.html">six errors guide</a> covers this with examples.</p>
+<p><strong>Blank overwrites.</strong> With "Overwrite existing products that have the same handle" selected, a blank non-required cell in your file overwrites the existing value with blank. Empty cells are not "leave unchanged".</p>
+<p><strong>Quiet price and stock changes.</strong> A supplier file that raised a cost or zeroed a stock level carries that change straight into the live store if you import without comparing it against a current export first.</p>
+<p><strong>Excel-mangled data.</strong> Excel strips leading zeros from EAN barcodes and turns TRUE/FALSE columns into "yes" or "1", while Shopify's format expects true or false. The <a href="/sheetcheck/guide.html">full list of these</a> is short and worth reading once.</p>
+<p class="check">Rule: every quiet error is caught the same way - compare the file against a current Shopify export before you import, and test with one complete product first.</p>
+
+<h2>The five-minute pre-import routine</h2>
+<p>1. Export your current products from Shopify (Products &rarr; Export) so you have a baseline and a backup.<br>
+2. Check the incoming file's headers against Shopify's exact column names.<br>
+3. Compare the file against the export: which prices, stock levels and variants would change, and do you mean for them to?<br>
+4. Import one complete product - all its rows, including variant and image rows - and check the result in the admin.<br>
+5. Only then import the rest.</p>
+
+<div class="cta">
+<h2>Step 3 in two minutes</h2>
+<p>SheetCheck is a free tool that does the comparison for you: upload the supplier file and your Shopify export, and it flags variant-deletion risk, price and stock changes, duplicate SKUs, missing prices, decimal-comma prices, barcode problems and more - with exact rows and plain-English explanations. It runs entirely in your browser; the files never leave your computer. It is brand new, so treat it as a second pair of eyes, not a guarantee.</p>
+<p><a href="/sheetcheck/">Check a CSV now - free</a></p>
+</div>
+</main>
+<footer>Built by ioautomations. Runs in your browser; no uploads, no account.<br>Also read: <a href="/sheetcheck/guide.html">six Shopify CSV import errors that delete variants</a>, <a href="/sheetcheck/map-supplier-csv.html">how to map a supplier spreadsheet to Shopify's product CSV format</a> and <a href="/sheetcheck/shopify-product-csv-template.html">Shopify's product CSV template, explained</a></footer>
+</body>
+</html>
