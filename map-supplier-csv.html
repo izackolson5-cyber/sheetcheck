@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to map a supplier spreadsheet to Shopify's product CSV format - SheetCheck</title>
+<meta name="description" content="Supplier spreadsheets never arrive in Shopify's format. How to map supplier columns to Shopify's product CSV fields, row by row, and what to check before you import.">
+<link rel="canonical" href="https://izackolson5-cyber.github.io/sheetcheck/map-supplier-csv.html">
+<meta property="og:title" content="How to map a supplier spreadsheet to Shopify's product CSV format">
+<meta property="og:description" content="Supplier spreadsheets never arrive in Shopify's format. How to map supplier columns to Shopify's product CSV fields and what to check before import.">
+<meta property="og:url" content="https://izackolson5-cyber.github.io/sheetcheck/map-supplier-csv.html">
+<meta property="og:type" content="article">
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:48px 20px 32px}
+h1{font-size:28px;line-height:1.25;margin:0 0 16px}
+h2{font-size:20px;margin:32px 0 8px}
+p{margin:0 0 12px}
+.lede{color:#334155;font-size:17px}
+table{border-collapse:collapse;width:100%;margin:0 0 16px;font-size:14px}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#f1f5f9}
+code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:13px}
+.tip{background:#eff6ff;border-left:3px solid #2563eb;padding:8px 12px;border-radius:0 6px 6px 0;color:#1e3a8a}
+.cta{margin-top:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px}
+.cta a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600}
+nav{max-width:720px;margin:0 auto;padding:16px 20px;font-size:14px}
+nav a{color:#2563eb;text-decoration:none}
+footer{max-width:720px;margin:0 auto;padding:24px 20px 48px;font-size:13px;color:#64748b}
+footer a{color:#2563eb}
+</style>
+</head>
+<body>
+<nav><a href="/sheetcheck/">&larr; SheetCheck - free supplier CSV checker</a></nav>
+<main>
+<h1>How to map a supplier spreadsheet to Shopify's product CSV format</h1>
+<p class="lede">No supplier sends their spreadsheet in Shopify's format. Before a supplier file can become products in your store, every column has to be mapped to a field Shopify understands, and a few judgement calls have to be made. This is how to do that mapping without creating problems you will be fixing for days afterwards.</p>
+
+<h2>Start from a real export, not a blank sheet</h2>
+<p>The fastest way to get the exact column names right is to export a product you already sell from your own store (Products &rarr; Export). That file shows the precise headers your store uses today, including any columns your theme or apps added. Shopify also publishes a sample CSV and a column reference in its help centre, and it keeps older column names working - an export from your own store is still the safest reference because it reflects your setup.</p>
+
+<h2>The columns that matter</h2>
+<p>You do not need every column. These are the ones that decide whether an import goes well:</p>
+<table>
+<tr><th>Shopify column</th><th>What to put in it from the supplier file</th></tr>
+<tr><td><code>URL handle</code> (older files: <code>Handle</code>)</td><td>One per product, repeated on every variant row. Lowercase letters, numbers and dashes, no spaces. If the supplier has a product code, it can work as the handle.</td></tr>
+<tr><td><code>Title</code></td><td>The product name, on the first row of each product only.</td></tr>
+<tr><td><code>Vendor</code></td><td>The supplier or brand name.</td></tr>
+<tr><td><code>Option1 Name</code> / <code>Option1 Value</code> (and Option2/3)</td><td>Size, Colour and so on. Every variant of a product needs its own row with the same handle and its own option values. If a product has no variants, Shopify uses <code>Default Title</code> here.</td></tr>
+<tr><td><code>SKU</code></td><td>The supplier's SKU is usually the right value - it keeps restocking and reordering matchable later. Each SKU should appear once.</td></tr>
+<tr><td><code>Price</code></td><td>Your selling price, as a plain number like <code>19.99</code> with no currency symbol. See the cost-price trap below.</td></tr>
+<tr><td><code>Inventory quantity</code></td><td>Only for single-location stores. Multi-location stores use Shopify's separate inventory CSV.</td></tr>
+<tr><td><code>Weight value (grams)</code></td><td>Grams only, no unit. Convert pounds and ounces first if you use calculated shipping rates.</td></tr>
+<tr><td><code>Barcodes</code></td><td>EAN/UPC codes. Watch for Excel stripping leading zeros. Multiple barcodes are separated with semicolons.</td></tr>
+<tr><td><code>Image Src</code></td><td>A public image URL per image. Shopify downloads the image at import, so the supplier's links have to stay live until it finishes.</td></tr>
+</table>
+
+<h2>The cost-price trap</h2>
+<p>Most supplier files list <em>cost</em> - what you pay them. Shopify's <code>Price</code> column is what your customer pays. Importing a cost column as the selling price is one of the most expensive mapping mistakes there is: products go live at cost. Decide your margin first, put the computed retail price in <code>Price</code>, and keep the supplier cost out of the import file entirely (or in a metafield you set up deliberately).</p>
+
+<h2>Format rules that quietly break imports</h2>
+<p>- Save as UTF-8 CSV. Excel's default export settings can mangle characters and delimiter settings vary by region.</p>
+<p>- Prices are numbers with a point, never a currency symbol, and a decimal comma (<code>19,99</code>) is a structural problem in a comma-separated file - it needs a human decision, not a find-and-replace.</p>
+<p>- Values containing commas (tag lists, descriptions) need quoting; spreadsheet apps do this for you, plain text editors do not.</p>
+<p>- TRUE/FALSE columns (<code>Published on online store</code>, <code>Variant Requires Shipping</code>, <code>Variant Taxable</code>) expect <code>true</code> or <code>false</code>, not <code>yes</code> or <code>1</code>.</p>
+<p class="tip">More detail on the errors that do the most damage - including how a missing option column can delete existing variants when you overwrite products - is in our companion guide: <a href="/sheetcheck/guide.html">Shopify CSV import errors that delete variants (and how to catch them first)</a>.</p>
+
+<h2>Test with one product before the whole file</h2>
+<p>Map one product, import it, and look at it in the admin: variants, price, stock, images. Only then run the full file. If you are updating existing products, read Shopify's warning on <code>Overwrite products with matching handles</code> first - blank columns overwrite existing values with blank.</p>
+
+<div class="cta">
+<h2>Check the mapping before you import</h2>
+<p>SheetCheck is a free tool that checks a supplier CSV against your Shopify product export before you import: missing option columns, duplicate SKUs, decimal-comma prices, non-numeric prices, barcodes, and unintended price and stock changes. It runs entirely in your browser - the file never leaves your computer. It is brand new, so treat it as a second pair of eyes, not a guarantee.</p>
+<p><a href="/sheetcheck/">Check a CSV now - free</a></p>
+</div>
+</main>
+<footer>Built by ioautomations. Runs in your browser; no uploads, no account.<br>Also read: <a href="/sheetcheck/guide.html">the CSV import errors that delete variants (and how to catch them)</a></footer>
+</body>
+</html>
