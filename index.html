@@ -16,7 +16,7 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>SheetCheck</h1>
+    <h1>SheetCheck <span id="pro-badge" class="pro-badge hidden">PRO</span></h1>
     <p class="tagline">Check a supplier spreadsheet against your Shopify export <em>before</em> you import it.</p>
   </div>
 </header>
@@ -45,6 +45,12 @@
         <span class="fname" id="fname-export"></span>
       </div>
     </div>
+    <div class="dropzone pro-only" id="dz-batch">
+      <h3>Batch check <span class="protag">Pro</span></h3>
+      <p>Several supplier CSVs in one run, all against the same Shopify export. Picking files here replaces the single supplier file above.</p>
+      <input type="file" id="file-batch" accept=".csv,text/csv" multiple>
+      <span class="fname" id="fname-batch"></span>
+    </div>
     <button class="btn primary" id="btn-to-mapping" disabled>Next: check column mapping</button>
     <button class="btn ghost" id="btn-sample">No files handy? Load sample data</button>
   </section>
@@ -52,6 +58,18 @@
   <section class="card hidden" id="step2">
     <h2><span class="stepnum">2</span> Map your columns</h2>
     <p>We guessed these from your headers. Fix any that are wrong - especially anything to do with <strong>Options</strong>, <strong>SKU</strong> and <strong>Price</strong>.</p>
+    <div class="pro-only batchbar" id="batch-mapper">
+      Mapping for: <select id="batch-file-select"></select>
+      <span class="fineprint">Each file keeps its own mapping.</span>
+    </div>
+    <div class="pro-only presetbar" id="preset-bar">
+      <select id="preset-select"><option value="">Saved mappings...</option></select>
+      <button class="btn ghost btn-sm" id="btn-preset-apply">Apply</button>
+      <button class="btn ghost btn-sm" id="btn-preset-delete">Delete</button>
+      <input type="text" id="preset-name" placeholder="Supplier name">
+      <button class="btn ghost btn-sm" id="btn-preset-save">Save this mapping</button>
+      <span class="fineprint" id="preset-msg"></span>
+    </div>
     <div id="mapping-table"></div>
     <div id="mapping-conflict" class="conflict hidden"></div>
     <p class="fineprint hidden" id="unmapped-note"></p>
@@ -61,7 +79,11 @@
   <section class="card hidden" id="step3">
     <h2><span class="stepnum">3</span> Results</h2>
     <div id="stats"></div>
+    <div id="batch-summary" class="hidden"></div>
     <div id="verdict"></div>
+    <div class="pro-only batchbar" id="issues-file-bar">
+      Issues for: <select id="issues-file-select"></select>
+    </div>
     <div class="filters" id="filters">
       <button class="chip active" data-sev="all">All</button>
       <button class="chip" data-sev="error">Errors</button>
@@ -69,9 +91,12 @@
       <button class="chip" data-sev="info">Info</button>
     </div>
     <div id="issues"></div>
-    <div class="downloads">
+    <div class="downloads" id="single-downloads">
       <button class="btn primary" id="btn-download-clean">Download cleaned CSV for Shopify import</button>
       <button class="btn ghost" id="btn-download-report">Download issue report (spreadsheet-safe CSV)</button>
+    </div>
+    <div class="downloads pro-only" id="batch-downloads">
+      <button class="btn ghost" id="btn-download-report-all">Download combined issue report, all files (spreadsheet-safe CSV)</button>
     </div>
     <p class="conflict hidden" id="formula-note"></p>
     <p class="fineprint" id="clean-note">Cleaned import file: trims whitespace, fixes number formats, removes empty rows. Only the columns mapped in step 2 are carried over. Values are never rewritten - what you saw in the check is what Shopify gets. Rows with errors are kept by default so variant structure stays intact; fix or delete them in your spreadsheet app first. The issue report is a separate diagnostic file with formula-safe escaping for Excel.</p>
@@ -82,7 +107,8 @@
     <h2>Private by design</h2>
     <p>Your files <strong>never leave your browser</strong>. There is no upload, no server, no account, no tracking.
     Everything runs on this page, so your supplier pricing and store data stay yours.
-    You can even load this page, go offline, and it still works.</p>
+    You can even load this page, go offline, and it still works.
+    If you unlock Pro, your key and saved mappings are kept in this browser's local storage only - still nothing is uploaded.</p>
   </section>
 
   <section class="card how">
@@ -94,11 +120,45 @@
       <li>Fix the errors in your file, then import into Shopify with confidence.</li>
     </ol>
   </section>
+
+  <section class="card pricing" id="pricing">
+    <h2>Free and Pro</h2>
+    <div class="plans">
+      <div class="plan">
+        <h3>Free</h3>
+        <p class="price">$0 <span>forever</span></p>
+        <ul>
+          <li>Full check of a supplier CSV against your Shopify export</li>
+          <li>Variant-deletion risk, duplicate SKUs, broken prices and barcodes, every price change</li>
+          <li>Cleaned import CSV and issue report downloads</li>
+        </ul>
+        <p class="fineprint">No account, nothing to install.</p>
+      </div>
+      <div class="plan proplan">
+        <h3>Pro <span class="protag">one payment</span></h3>
+        <p class="price">US$19 <span>once - no subscription</span></p>
+        <ul>
+          <li>Everything in Free</li>
+          <li><strong>Save each supplier's column mapping</strong> - the next restock from that supplier takes seconds</li>
+          <li><strong>Batch check</strong> - several supplier files in one run, per-file verdicts and one combined report</li>
+        </ul>
+        <!-- Not live yet: replace # with the approved Stripe Payment Link before this page deploys. -->
+        <a class="btn primary" id="btn-buy-pro" href="https://buy.stripe.com/cNi4gtc8j9Vua7b6D473G02">Get Pro - secure Stripe checkout</a>
+        <p class="fineprint">After checkout you receive your Pro key. One payment, no subscription.</p>
+      </div>
+    </div>
+    <div class="prokey" id="pro-key">
+      <label for="pro-key-input">Have a Pro key?</label>
+      <input type="text" id="pro-key-input" placeholder="SC1-XXXXXX-XX" autocomplete="off" spellcheck="false">
+      <button class="btn ghost" id="btn-pro-unlock">Unlock</button>
+      <span class="fineprint" id="pro-key-msg"></span>
+    </div>
+  </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <p>SheetCheck is a free tool by <strong>ioautomations</strong>. Questions or ideas: <a href="mailto:ioautomations1@gmail.com">ioautomations1@gmail.com</a></p>
+    <p>SheetCheck is built by <strong>ioautomations</strong>. The full checker is free; Pro adds time-savers for repeat suppliers. Questions or ideas: <a href="mailto:ioautomations1@gmail.com">ioautomations1@gmail.com</a></p>
     <p class="fineprint">Not affiliated with Shopify. Always keep a backup export before any import.</p>
     <p class="fineprint"><a href="/sheetcheck/guide.html">Read: the CSV import errors that delete variants (and how to catch them)</a></p>
   </div>
@@ -106,6 +166,7 @@
 
 <script src="csv.js"></script>
 <script src="checker.js"></script>
+<script src="pro.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
